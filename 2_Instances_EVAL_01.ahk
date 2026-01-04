@@ -20,6 +20,8 @@ F9:: {
     ; Generate timestamp for this measurement session
     timestamp := FormatTime(, "yyyyMMdd_HHmmss")
     
+    ; Define prefixes for each instance
+    prefixes := ["Isolated", "Naked"]
     instanceNum := 1
     
     ; === PREP FILENAMES IN ALL INSTANCES ===
@@ -35,8 +37,9 @@ F9:: {
         MouseClick("Left", 918, 835)
         Sleep(100)
         
-        ; Generate filename and copy to clipboard
-        filename := "Sensor" instanceNum "_" timestamp ".txt"
+        ; Generate filename with prefix and copy to clipboard
+        prefix := prefixes[instanceNum]
+        filename := prefix "_" timestamp ".txt"
         A_Clipboard := filename
         Sleep(50)
         
@@ -64,7 +67,7 @@ F9:: {
     }
     
     ; Confirmation tooltip
-    ToolTip("✓ Filenames set and measurement started`nTimestamp: " timestamp)
+    ToolTip("✓ Filenames set and measurement started`nTimestamp: " timestamp "`nInstances: " windows.Length)
     SetTimer(() => ToolTip(), -3000)
 }
 
