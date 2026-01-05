@@ -2,17 +2,80 @@
 
 ; =============================================================================
 ; ADXL355 Dual Sensor Automation Script
-; F9 = Set filename (triple-click + paste) AND start measurements
-; F10 = Stop measurements in both instances
+; F9 = Scroll, set filename based on window title, AND start measurements
+; F10 = Scroll AND stop measurements, then scroll back up
 ; =============================================================================
 
-global windowTitle := "Producer/Consumer Design Pattern (Events)"
+; Set title matching to exact match
+SetTitleMatchMode(3)
 
-; F9: Set filename AND start data capture in both instances
-F9:: {
-    windows := WinGetList(windowTitle)
+; Hardcoded window titles
+global isolatedTitle := "Producer/Consumer Design Pattern (Events)"
+global nakedTitle := "[#] [EVAL] Producer/Consumer Design Pattern (Events) [#]"
+
+; Function to scroll down and left in a window - FASTER VERSION
+ScrollToButtons(hwnd) {
+    WinActivate(hwnd)
+    Sleep(100)
     
-    if (windows.Length = 0) {
+    ; Scroll down in one big scroll (21 notches = 7 scrolls of 3)
+    Send("{WheelDown 21}")
+    Sleep(150)
+    
+    ; Scroll left in one go (6 notches = 2 scrolls of 3)
+    Send("{WheelLeft 6}")
+    Sleep(100)
+}
+
+; Function to scroll back up in a window - FASTER VERSION
+ScrollBackUp(hwnd) {
+    WinActivate(hwnd)
+    Sleep(100)
+    
+    ; Scroll up in one big scroll (21 notches = 7 scrolls of 3)
+    Send("{WheelUp 21}")
+    Sleep(100)
+}
+
+; Function to get prefix based on window title
+GetPrefix(title) {
+    if (title = nakedTitle) {
+        return "Naked"
+    } else {
+        return "Isolated"
+    }
+}
+
+; Function to find all relevant windows
+GetRelevantWindows() {
+    relevantWindows := []
+    
+    ; Try to find Isolated instance (exact match only)
+    isolatedHwnd := WinExist(isolatedTitle)
+    if (isolatedHwnd) {
+        obj := {}
+        obj.hwnd := isolatedHwnd
+        obj.title := isolatedTitle
+        relevantWindows.Push(obj)
+    }
+    
+    ; Try to find Naked instance (exact match only)
+    nakedHwnd := WinExist(nakedTitle)
+    if (nakedHwnd) {
+        obj := {}
+        obj.hwnd := nakedHwnd
+        obj.title := nakedTitle
+        relevantWindows.Push(obj)
+    }
+    
+    return relevantWindows
+}
+
+; F9: Scroll, set filename based on window title, AND start data capture
+F9:: {
+    relevantWindows := GetRelevantWindows()
+    
+    if (relevantWindows.Length = 0) {
         MsgBox("No ADXL355 software windows found!")
         return
     }
@@ -20,78 +83,97 @@ F9:: {
     ; Generate timestamp for this measurement session
     timestamp := FormatTime(, "yyyyMMdd_HHmmss")
     
-    instanceNum := 1
+    ; === PHASE 1: SCROLL TO BUTTONS IN ALL INSTANCES ===
+    for window in relevantWindows {
+        ScrollToButtons(window.hwnd)
+    }
     
-    ; === PREP FILENAMES IN ALL INSTANCES ===
-    for hwnd in windows {
-        WinActivate("ahk_id " hwnd)
-        Sleep(150)
+    Sleep(200)
+    
+    ; === PHASE 2: SET FILENAMES IN ALL INSTANCES ===
+    for window in relevantWindows {
+        WinActivate(window.hwnd)
+        Sleep(100)
+        
+        ; Get prefix based on stored title
+        prefix := GetPrefix(window.title)
         
         ; Triple-click on filename field at 918, 835 to select all
         MouseClick("Left", 918, 835)
-        Sleep(50)
+        Sleep(40)
         MouseClick("Left", 918, 835)
-        Sleep(50)
+        Sleep(40)
         MouseClick("Left", 918, 835)
-        Sleep(100)
+        Sleep(80)
         
         ; Generate filename and copy to clipboard
-        filename := "Sensor" instanceNum "_" timestamp ".txt"
+        filename := prefix "_" timestamp ".txt"
         A_Clipboard := filename
-        Sleep(50)
+        Sleep(40)
         
         ; Paste filename with Ctrl+V
         Send("^v")
-        Sleep(150)
-        
-        instanceNum++
+        Sleep(100)
     }
     
-    ; Wait for all filenames to be set
-    Sleep(500)
+    ; Wait for all filenames to be confirmed
+    Sleep(200)
     
-    ; === START DATA CAPTURE ===
-    instanceNum := 1
-    for hwnd in windows {
-        WinActivate("ahk_id " hwnd)
-        Sleep(150)
+    ; === PHASE 3: START DATA CAPTURE IN ALL INSTANCES ===
+    for window in relevantWindows {
+        WinActivate(window.hwnd)
+        Sleep(100)
         
         ; Click Start button at screen position 1439, 718
         MouseClick("Left", 1439, 718)
-        Sleep(200)
-        
-        instanceNum++
+        Sleep(150)
     }
     
     ; Confirmation tooltip
-    ToolTip("✓ Filenames set and measurement started`nTimestamp: " timestamp)
+    ToolTip("✓ Filenames set and measurement started`nTimestamp: " timestamp "`nInstances: " relevantWindows.Length)
     SetTimer(() => ToolTip(), -3000)
 }
 
-; F10: Stop Data Capture in both instances
+; F10: Scroll AND stop data capture in both instances, then scroll back up - FASTER VERSION
 F10:: {
-    windows := WinGetList(windowTitle)
+    relevantWindows := GetRelevantWindows()
     
-    if (windows.Length = 0) {
+    if (relevantWindows.Length = 0) {
         MsgBox("No ADXL355 software windows found!")
         return
     }
     
+    ; === SCROLL TO BUTTONS IN ALL INSTANCES ===
+    for window in relevantWindows {
+        ScrollToButtons(window.hwnd)
+    }
+    
+    Sleep(150)
+    
     stoppedCount := 0
     
-    for hwnd in windows {
-        WinActivate("ahk_id " hwnd)
-        Sleep(150)
+    ; === STOP DATA CAPTURE ===
+    for window in relevantWindows {
+        WinActivate(window.hwnd)
+        Sleep(80)
         
         ; Click Stop button at screen position 1438, 826
         MouseClick("Left", 1438, 826)
-        Sleep(300)
+        Sleep(150)
         
         stoppedCount++
     }
     
+    ; Wait for stop to complete
+    Sleep(200)
+    
+    ; === SCROLL BACK UP IN ALL INSTANCES ===
+    for window in relevantWindows {
+        ScrollBackUp(window.hwnd)
+    }
+    
     ; Confirmation tooltip
-    ToolTip("✓ Stopped " stoppedCount " sensor(s)`nData saved")
+    ToolTip("✓ Stopped " stoppedCount " sensor(s)`nData saved`nScrolled back up")
     SetTimer(() => ToolTip(), -2000)
 }
 
