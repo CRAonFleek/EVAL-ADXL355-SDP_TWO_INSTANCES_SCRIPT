@@ -4,9 +4,40 @@
 ; ADXL355 Dual Sensor Automation Script
 ; F9 = Set filename (triple-click + paste) AND start measurements
 ; F10 = Stop measurements in both instances
+; F11 = Scroll GUI to bottom-left to access buttons
 ; =============================================================================
 
 global windowTitle := "Producer/Consumer Design Pattern (Events)"
+
+; F11: Scroll to bottom-left to access buttons
+F11:: {
+    windows := WinGetList(windowTitle)
+    
+    if (windows.Length = 0) {
+        MsgBox("No ADXL355 software windows found!")
+        return
+    }
+    
+    for hwnd in windows {
+        WinActivate("ahk_id " hwnd)
+        Sleep(150)
+        
+        ; Scroll down 4 times (wheel down)
+        Loop 7 {
+            Send("{WheelDown 3}")
+            Sleep(100)
+        }
+        
+        ; Scroll left 2 times (wheel left)
+        Loop 2 {
+            Send("{WheelLeft 3}")
+            Sleep(100)
+        }
+    }
+    
+    ToolTip("✓ Scrolled to buttons")
+    SetTimer(() => ToolTip(), -2000)
+}
 
 ; F9: Set filename AND start data capture in both instances
 F9:: {
