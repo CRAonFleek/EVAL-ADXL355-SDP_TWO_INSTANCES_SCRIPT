@@ -18,6 +18,15 @@ ScrollToButtons(hwnd) {
     WinActivate(hwnd)
     Sleep(100)
     
+    ; Get window position and size
+    WinGetPos(&winX, &winY, &winWidth, &winHeight, hwnd)
+    
+    ; Move mouse to center of window before scrolling
+    centerX := winX + (winWidth // 2)
+    centerY := winY + (winHeight // 2)
+    MouseMove(centerX, centerY)
+    Sleep(50)
+    
     ; Scroll down in one big scroll (21 notches = 7 scrolls of 3)
     Send("{WheelDown 21}")
     Sleep(150)
@@ -31,6 +40,15 @@ ScrollToButtons(hwnd) {
 ScrollBackUp(hwnd) {
     WinActivate(hwnd)
     Sleep(100)
+    
+    ; Get window position and size
+    WinGetPos(&winX, &winY, &winWidth, &winHeight, hwnd)
+    
+    ; Move mouse to center of window before scrolling
+    centerX := winX + (winWidth // 2)
+    centerY := winY + (winHeight // 2)
+    MouseMove(centerX, centerY)
+    Sleep(50)
     
     ; Scroll up in one big scroll (21 notches = 7 scrolls of 3)
     Send("{WheelUp 21}")
