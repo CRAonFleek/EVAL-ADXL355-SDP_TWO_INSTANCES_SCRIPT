@@ -3,7 +3,7 @@
 ; =============================================================================
 ; ADXL355 Dual Sensor Automation Script
 ; F9 = Scroll, set filename based on window title, AND start measurements
-; F10 = Scroll AND stop measurements, then scroll back up
+; F10 = Scroll, stop measurements, scroll back up, AND take screenshots
 ; =============================================================================
 
 ; Set title matching to exact match
@@ -12,6 +12,9 @@ SetTitleMatchMode(3)
 ; Hardcoded window titles
 global isolatedTitle := "Producer/Consumer Design Pattern (Events)"
 global nakedTitle := "[#] [EVAL] Producer/Consumer Design Pattern (Events) [#]"
+
+; Screenshot save path
+global graphPath := "C:\Users\cemat\Desktop\Studiprojekt_Vibrationssensor\Sensor\Graphs\"
 
 ; Function to scroll down and left in a window - FASTER VERSION
 ScrollToButtons(hwnd) {
@@ -53,6 +56,30 @@ ScrollBackUp(hwnd) {
     ; Scroll up in one big scroll (21 notches = 7 scrolls of 3)
     Send("{WheelUp 21}")
     Sleep(100)
+}
+
+; Function to take screenshot using PowerShell
+TakeScreenshot(prefix, timestamp) {
+    ; Screenshot coordinates
+    x := 178
+    y := 344
+    w := 1129  ; 1307 - 178
+    h := 653   ; 997 - 344
+    
+    ; Create filename
+    filename := prefix "_" timestamp "_screenshot.png"
+    filepath := graphPath filename
+    
+    ; PowerShell script to capture screenshot (single line)
+    psScript := "Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; $bitmap = New-Object System.Drawing.Bitmap " . w . "," . h . "; $graphics = [System.Drawing.Graphics]::FromImage($bitmap); $graphics.CopyFromScreen(" . x . "," . y . ",0,0,$bitmap.Size); $bitmap.Save('" . filepath . "',[System.Drawing.Imaging.ImageFormat]::Png); $graphics.Dispose(); $bitmap.Dispose()"
+    
+    ; Execute PowerShell command
+    try {
+        RunWait('powershell.exe -WindowStyle Hidden -Command "' . psScript . '"', , "Hide")
+        return true
+    } catch {
+        return false
+    }
 }
 
 ; Function to get prefix based on window title
@@ -99,7 +126,7 @@ F9:: {
     }
     
     ; Generate timestamp for this measurement session
-    timestamp := FormatTime(, "yyyyMMdd_HHmmss")
+    global currentTimestamp := FormatTime(, "yyyyMMdd_HHmmss")
     
     ; === PHASE 1: SCROLL TO BUTTONS IN ALL INSTANCES ===
     for window in relevantWindows {
@@ -125,7 +152,7 @@ F9:: {
         Sleep(80)
         
         ; Generate filename and copy to clipboard
-        filename := prefix "_" timestamp ".txt"
+        filename := prefix "_" currentTimestamp ".txt"
         A_Clipboard := filename
         Sleep(40)
         
@@ -148,11 +175,11 @@ F9:: {
     }
     
     ; Confirmation tooltip
-    ToolTip("✓ Filenames set and measurement started`nTimestamp: " timestamp "`nInstances: " relevantWindows.Length)
+    ToolTip("✓ Filenames set and measurement started`nTimestamp: " currentTimestamp "`nInstances: " relevantWindows.Length)
     SetTimer(() => ToolTip(), -3000)
 }
 
-; F10: Scroll AND stop data capture in both instances, then scroll back up - FASTER VERSION
+; F10: Scroll, stop data capture, scroll back up, AND take screenshots
 F10:: {
     relevantWindows := GetRelevantWindows()
     
@@ -190,9 +217,25 @@ F10:: {
         ScrollBackUp(window.hwnd)
     }
     
+    ; Wait for scroll to complete
+    Sleep(500)
+    
+    ; === TAKE SCREENSHOTS ===
+    screenshotCount := 0
+    for window in relevantWindows {
+        WinActivate(window.hwnd)
+        Sleep(200)
+        
+        prefix := GetPrefix(window.title)
+        if (TakeScreenshot(prefix, currentTimestamp)) {
+            screenshotCount++
+        }
+        Sleep(300)  ; Wait between screenshots
+    }
+    
     ; Confirmation tooltip
-    ToolTip("✓ Stopped " stoppedCount " sensor(s)`nData saved`nScrolled back up")
-    SetTimer(() => ToolTip(), -2000)
+    ToolTip("✓ Stopped " stoppedCount " sensor(s)`nData saved`nScreenshots: " screenshotCount)
+    SetTimer(() => ToolTip(), -2500)
 }
 
 ; ESC: Emergency exit
